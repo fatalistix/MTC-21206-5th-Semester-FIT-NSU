@@ -1,0 +1,25 @@
+import lingo/pegcode/driver;
+
+lingoGrammarOp : ref Maybe<[PegOp]> = ref None();
+
+Expr ::= Int, Add, Mul;
+Int(value : int);
+Add(l : Expr, r : Expr);
+Mul(l : Expr, r : Expr);
+
+lingoGrammar() {
+	onlyOnce(lingoGrammarOp, \ -> {
+		compilePegGrammar("#include lingo/lingo.lingo");
+	});
+}
+
+strToAst(str : string) -> flow {
+	parsic(lingoGrammar(), str, defaultPegActions);
+}
+
+main() {
+	result = strToAst("(((3 + 11) * 2) * (10 + 5))");
+    println(result);
+	println(getUrlParameter("stdin"));
+    quit(0);
+}
