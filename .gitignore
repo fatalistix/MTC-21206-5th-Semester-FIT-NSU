@@ -5,3 +5,4 @@
 # Flow9 auto generated files
 *.bytecode
 *.debug
+.compile-errors
