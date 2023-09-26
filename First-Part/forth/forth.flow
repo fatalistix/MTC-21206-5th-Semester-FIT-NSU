@@ -1,0 +1,58 @@
+import runtime;
+import ds/tree;
+
+
+
+inds(a : [int], m : int) -> [Pair<int, int>] {
+    tree = foldi(a, makeTree(), \i, t, v -> {
+        switch (lookupTree(t, v)) {
+            Some(arrRef): {
+                refArrayPush(arrRef, i);
+                t;
+            }
+            None(): {
+                arrRef : ref [int] = ref [];
+                refArrayPush(arrRef, i);
+                setTree(t, v, arrRef);
+            } 
+        }
+    });
+
+    res : ref [Pair<int, int>] = ref [];
+
+    foldi(a, tree, \i, t, v -> {
+        switch (lookupTree(t, m - v)) {
+            Some(arrRef): {
+                for(0, \j -> j < length(^arrRef), \j -> {
+                    refArrayPush(res, Pair(i, ^arrRef[j]));
+                    j + 1;
+                });
+                removeFromTree(t, v);
+            }
+            None(): t;
+        }
+    });
+    ^res;
+}
+
+indsSquare(a : [int], m : int) -> [Pair<int, int>] {
+    res : ref [Pair<int, int>] = ref [];
+    for(0, \i -> i < length(a), \i -> {
+        for (i + 1, \j -> j < length(a), \j -> {
+            if (a[i] + a[j] == m) {
+                refArrayPush(res, Pair(i, j));
+            }
+            j + 1;
+        });
+        i + 1;
+    });
+    ^res;
+}
+
+main() {
+    arr : [int] = [8, 7, 6, 5, 4, 3, 2, 1, 8, 5, 5];
+    target : int = 13;
+    println(inds(arr, target));
+    println(indsSquare(arr, target));
+    quit(0);
+}

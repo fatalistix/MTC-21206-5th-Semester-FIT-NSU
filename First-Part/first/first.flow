@@ -1,0 +1,13 @@
+import runtime;
+import ds/array;
+import string;
+
+stringify(arr : [int]) {
+    strGlue(map(arr, \x -> i2s(x)), ", ");
+}
+
+main() {
+    arr : [int] = [1, 22, 333, 444, 55555];
+    println(stringify(arr));
+    quit(0);
+}

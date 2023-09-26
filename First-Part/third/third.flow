@@ -1,0 +1,59 @@
+import runtime;
+import ds/array;
+
+fibRec(n : int) -> [int] {
+    if (n <= 0) {
+        [];
+    } else if (n == 1) {
+        [1];
+    } else if (n == 2) {
+        [1, 1];
+    } else {
+        prevRes : [int] = fibRec(n - 1);
+        arrayPush(prevRes, prevRes[n - 2] + prevRes[n - 3]);
+    }
+}
+
+fibRecTailReal(n : int, arr : [int]) -> [int] {
+    if (n == 2) {
+        arr;
+    } else {
+        fibRecTailReal(n - 1, arrayPush(arr, arr[length(arr) - 1] + arr[length(arr) - 2]));
+    }
+}
+
+fibRecTail(n : int) -> [int] {
+    if (n <= 0) {
+        [];
+    } else if (n == 1) {
+        [1];
+    } else if (n == 2) {
+        [1, 1];
+    } else {
+        fibRecTailReal(n, [1, 1]);
+    }
+}
+
+fibLinear(n : int) -> [int] {
+    if (n <= 0) {
+        [];
+    } else if (n == 1) {
+        [1];
+    } else if (n == 2) {
+        [1, 1];
+    } else {
+        arr : ref [int] = ref fibLinear(2);
+        for(2, \i -> i < n, \i -> {
+            refArrayPush(arr, ^arr[i - 1] + ^arr[i - 2]);
+            i + 1;
+        })
+        ^arr;
+    }
+}
+
+main() {
+    println(fibRecTail(10));
+    println(fibRec(10));
+    println(fibLinear(10));
+    quit(0);
+}
