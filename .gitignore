@@ -1,0 +1,7 @@
+#################
+##### FILES #####
+#################
+
+# Flow9 auto generated files
+*.bytecode
+*.debug
