@@ -1,3 +1,19 @@
+/*
+ * 5) Написать PEG-парсер грамматики простых арифметических выражений, 
+ * генерирующий AST дерево, используя библиотеку lingo.
+ * возможные термы: целочисленные константы, (t1+t2), (t1*t2)
+ * 
+ * PEG - Parsing Expression Grammars (грамматика задаётся в отдельном файле 
+ * lingo)
+ * 
+ * ввод – строка "(((3 + 11) * 2) * (10 + 5))";
+ * ast = strToAst(exprStr);
+ * вывод – на машинном языке грамматики
+ *
+ * Использовать функции : parsic, compilePegGrammar
+ */
+
+
 import lingo/pegcode/driver;
 
 lingoGrammarOp : ref Maybe<[PegOp]> = ref None();
