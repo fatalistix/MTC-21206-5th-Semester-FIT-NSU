@@ -1,43 +1,23 @@
 /*
- * 5) Преобразовать AST дерево арифметических выражений обратно в строковую форму.
+ * 6) Реализуйте калькулятор для обратной польской записи (RPN) арифметических выражений. Напишите функции перевода арифметический выражений в RPN и наоборот.
+ * 
+ * Использовать функцию: getUrlParameter
  */
-
 
 import lingo/pegcode/driver;
 
 lingoGrammarOp : ref Maybe<[PegOp]> = ref None();
 
-Expr ::= Int, Add, Mul;
-Int(value : int);
-Add(l : Expr, r : Expr);
-Mul(l : Expr, r : Expr);
-
 lingoGrammar() {
     onlyOnce(lingoGrammarOp, \ -> {
-        compilePegGrammar("#include lingo/second.lingo");
-    });
+        compilePegGrammar("#include lingo/third.lingo");
+    })
 }
 
-strToAst(str : string) -> flow {
-    parsic(lingoGrammar(), str, defaultPegActions);
-}
-
-astToStr(ast: Expr) -> string {
-    switch (ast) {
-        Int(i): {
-            i2s(i);
-        }
-        Add(l, r): {
-            strGlue(["(", astToStr(l), "+", astToStr(r), ")"], "");
-        }
-        Mul(l, r): {
-            strGlue(["(", astToStr(l), "*", astToStr(r), ")"], "");
-        }
-    };
+rpnStrToAst(str : string) -> flow {
+    
 }
 
 main() {
-    ast = strToAst("(((3 + 11) * 2) * (10 + 5))");
-    println(astToStr(ast));
-    quit(0);
+
 }
