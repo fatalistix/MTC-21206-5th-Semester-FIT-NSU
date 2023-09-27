@@ -1,4 +1,0 @@
-exp = exp:e1 sp* exp:e2 sp* "+" { Add(:e1, :e2) }
-    | exp:e1 sp* exp:e2 sp* "-" { Sub(:e1, :e2) }
-    | exp:e1 sp* exp:e2 sp* "*" { Mul(:e1, :e2) }
-    | exp:e1 sp* exp:e2 sp* "/" { Div(:e1, :e2) }
