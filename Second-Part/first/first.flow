@@ -21,6 +21,7 @@
 
 
 import lingo/pegcode/driver;
+import sys/system;
 
 lingoGrammarOp : ref Maybe<[PegOp]> = ref None();
 
@@ -69,8 +70,13 @@ calc(ast : Expr) -> int {
 
 
 main() {
-	result = strToAst("(((3 + 11) * 2) * (10 + 5))");
+	result = strToAst("(((3 + 11) * 2) *  (10 + 5))");
     println(result);
-	println(getUrlParameter("stdin"));
+	temp = readUntil("\n");
+    str = substring(temp, 0, strlen(temp) - 1);
+    result1 = strToAst(str);
+    println(result1);
+    println(calc(result1));
+    println(astToStr(result1));
     quit(0);
 }
