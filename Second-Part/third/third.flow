@@ -1,0 +1,72 @@
+import lingo/pegcode/driver;
+import sys/system;
+import ds/tree;
+
+inLingoGrammarOp : ref Maybe<[PegOp]> = ref None();
+
+Expr ::= Int, Double, Var, Add, Mul, Div, Sub, M, P;
+Int(v : int);
+Double(v : double);
+Var(v : string);
+Add(l : Expr, r : Expr);
+Mul(l : Expr, r : Expr);
+Sub(l : Expr, r : Expr);
+Div(l : Expr, r : Expr);
+M(e : Expr);
+P(e : Expr);
+
+inLingoGrammar() {
+    onlyOnce(inLingoGrammarOp, \-> {
+        compilePegGrammar("#include lingo/inmodified.lingo");
+    });
+}
+
+inToAst(str : string) -> flow {
+    parsic(inLingoGrammar(), str, defaultPegActions);
+}
+
+calc(ast : Expr, vars : Tree<string, double>) -> double {
+    switch (ast) {
+        Int(v): {
+            i2d(v);
+        }
+        Double(v): {
+            v;
+        }
+        Var(v): {
+            switch (lookupTree(vars, v)) {
+                Some(value): {
+                    value;
+                }
+                None(): {
+                    0.;
+                }
+            }
+        }
+        Add(l, r): {
+            calc(l, vars) + calc(r, vars);
+        }
+        Mul(l, r): {
+            calc(l, vars) * calc(r, vars);
+        }
+        Sub(l, r): {
+            calc(l, vars) - calc(r, vars);
+        }
+        Div(l, r): {
+            calc(l, vars) / calc(r, vars);
+        }
+        M(e): {
+            -calc(e, vars);
+        }
+        P(e): {
+            calc(e, vars);
+        }
+    }
+}
+
+main() {
+    result = inToAst("(((-3.5) + 4) / a)");
+    println(result);
+    println(calc(result, setTree(makeTree(), "a", 3.5)));
+    quit(0);
+}
