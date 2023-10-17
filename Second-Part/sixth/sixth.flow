@@ -1,0 +1,562 @@
+import runtime;
+import lingo/pegcode/driver;
+import ds/tree;
+import sys/system;
+import string;
+import math/math;
+
+inLingoGrammarOp : ref Maybe<[PegOp]> = ref None();
+
+Expr ::= Rational, Var, Add, Mul, Div, Sub, M, P;
+Rational(num : int, denum : int);
+Var(v : string);
+Add(l : Expr, r : Expr);
+Mul(l : Expr, r : Expr);
+Sub(l : Expr, r : Expr);
+Div(l : Expr, r : Expr);
+M(e : Expr);
+P(e : Expr);
+
+inLingoGrammar() {
+    onlyOnce(inLingoGrammarOp, \-> {
+        compilePegGrammar("#include lingo/sixth.lingo");
+    });
+}
+
+simplifyRational(v : Rational) -> Rational {
+    if (v.denum == 0) {
+        fail("division by zero");
+    }
+    gcdNum = gcd(v.num, v.denum);
+    Rational(v.num / gcdNum, v.denum / gcdNum);
+}
+
+addRational(l : Rational, r : Rational) -> Rational {
+    gcdDenum = gcd(l.denum, r.denum);
+    resultDenum = max(l.denum, r.denum) / gcdDenum * min(l.denum, r.denum);
+    resultNum   = l.num * resultDenum / l.denum + r.num * resultDenum / r.denum;
+    simplifyRational(Rational(resultNum, resultDenum));
+}
+
+mulRational(l : Rational, r : Rational) -> Rational {
+    simplifyRational(Rational(l.num * r.num, l.denum * r.denum));
+}
+
+minusRational(r : Rational) -> Rational {
+    simplifyRational(Rational(-r.num, r.denum));
+}
+
+plusRational(r : Rational) -> Rational {
+    r;
+}
+
+subRational(l : Rational, r : Rational) -> Rational {
+    addRational(l, minusRational(r));
+}
+
+divRational(l : Rational, r : Rational) -> Rational {
+    mulRational(l, Rational(r.denum, r.num));
+}
+
+inToAst(str : string) -> flow {
+    parsic(inLingoGrammar(), str, defaultPegActions);
+}
+
+makeRationalAdd(l: Expr, r: Expr) -> Expr {
+    ast = Add(l, r);
+    switch (l) {
+        Div(ll, lr): {
+            switch (r) {
+                Div(rl, rr): {
+                    Div(Add(Mul(ll, rr), Mul(rl, lr)), Mul(lr, rr));
+                }
+                default: {
+                    Div(Add(ll, Mul(lr, r)), lr);
+                }
+            }
+        }
+        default: {
+            switch (r) {
+                Div(rl, rr): {
+                    Div(Add(Mul(l, rr), rl), rr);
+                }
+                default: {
+                    ast;
+                }
+            }
+        }
+    }
+}
+
+makeRationalSub(l: Expr, r: Expr) -> Expr {
+    ast = Sub(l, r);
+    switch (l) {
+        Div(ll, lr): {
+            switch (r) {
+                Div(rl, rr): {
+                    Div(Sub(Mul(ll, rr), Mul(rl, lr)), Mul(lr, rr));
+                }
+                default: {
+                    Div(Sub(ll, Mul(lr, r)), lr);
+                }
+            }
+        }
+        default: {
+            switch (r) {
+                Div(rl, rr): {
+                    Div(Sub(Mul(l, rr), rl), rr);
+                }
+                default: {
+                    ast;
+                }
+            }
+        }
+    }
+}
+
+makeRationalMul(l: Expr, r : Expr) -> Expr {
+    ast = Mul(l, r);
+    switch (l) {
+        Div(ll, lr): {
+            switch (r) {
+                Div(rl, rr): {
+                    Div(Mul(ll, rl), Mul(lr, rr));
+                }
+                default: {
+                    Div(Mul(ll, r), r);
+                }
+            }
+        }
+        default: {
+            switch (r) {
+                Div(rl, rr): {
+                    Div(Mul(l, rl), rr);
+                }
+                default: {
+                    ast;
+                }
+            }
+        }
+    }
+}
+
+makeRationalDiv(l: Expr, r: Expr) -> Expr {
+    ast = Div(l, r);
+    switch (l) {
+        Div(ll, lr): {
+            switch (r) {
+                Div(rl, rr): {
+                    Div(Mul(ll, rr), Mul(lr, rl));
+                }
+                default: {
+                    Div(ll, Mul(lr, r));
+                }
+            }
+        }
+        default: {
+            switch (r) {
+                Div(rl, rr): {
+                    Div(Mul(l, rr), rl);
+                }
+                default: {
+                    ast;
+                }
+            }
+        }
+    }
+}
+
+makeRationalPolinom(ast: Expr) -> Expr {
+    switch (ast) {
+        Rational(n, d): {
+            ast;
+        }
+        Var(s): {
+            ast;
+        }
+        Add(oldl, oldr): {
+            l = makeRationalPolinom(oldl);
+            r = makeRationalPolinom(oldr);
+            makeRationalAdd(l, r);
+        }
+        Sub(oldl, oldr): {
+            l = makeRationalPolinom(oldl);
+            r = makeRationalPolinom(oldr);
+            makeRationalSub(l, r);
+        }
+        Mul(oldl, oldr): {
+            l = makeRationalPolinom(oldl);
+            r = makeRationalPolinom(oldr);
+            makeRationalMul(l, r);
+        }
+        Div(oldl, oldr): {
+            l = makeRationalPolinom(oldl);
+            r = makeRationalPolinom(oldr);
+            makeRationalDiv(l, r);
+        }
+        P(v): {
+            makeRationalPolinom(v);
+        }
+        M(v): {
+            res = makeRationalPolinom(v);
+            switch (res) {
+                Div(l, r): {
+                    Div(M(l), r);
+                }
+                M(r): {
+                    r;
+                }
+                default: {
+                    M(res);
+                }
+            }
+        }
+    }
+}
+
+// equalsExpr(first: Expr, second: Expr) -> bool {
+//     switch (first) {
+//         Rational(fn, fd): {
+//             switch (second) {
+//                 Rational(sn, sd): {
+//                     if (Simplify(Rational(fn, fd)) == SimplifyRational(Rational(sn, sd))) {
+//                         return true;
+//                     } else {
+//                         return false;
+//                     }
+//                 }
+//                 P(value): {
+//                     equalsExpr(first, value);
+//                 }
+//                 M(value): {
+//                     equalsExpr(minusRational(Rational(fn, fd)), value);
+//                 }
+//             }
+//         }
+//     }
+// }
+doesNotContainsDiv(ast: Expr) -> bool {
+    switch (ast) {
+        Rational(n, d): {
+            true;
+        }
+        Var(name): {
+            true;
+        }
+        Add(l, r): {
+            doesNotContainsDiv(l) && doesNotContainsDiv(r);
+        }
+        Sub(l, r): {
+            doesNotContainsDiv(l) && doesNotContainsDiv(r);
+        }
+        Mul(l, r): {
+            doesNotContainsDiv(l) && doesNotContainsDiv(r);
+        }
+        Div(l, r): {
+            false;
+        }
+        P(v): {
+            doesNotContainsDiv(v);
+        }
+        M(v): {
+            doesNotContainsDiv(v);
+        }
+    }
+}
+
+isRationalFunction(ast: Expr) -> bool {
+    switch (ast) {
+        Div(l, r): {
+            doesNotContainsDiv(l) && doesNotContainsDiv(r);
+        }
+        default: {
+            doesNotContainsDiv(ast);
+        }
+    }
+}
+
+removeUnarySigns(ast: Expr) -> Expr {
+    switch (ast) {
+        Rational(n, d): {
+            ast;
+        }
+        Var(v): {
+            ast;
+        }
+        Add(l, r): {
+            Add(removeUnarySigns(l), removeUnarySigns(r));
+        }
+        Mul(l, r): {
+            Mul(removeUnarySigns(l), removeUnarySigns(r));
+        }
+        Sub(l, r): {
+            Sub(removeUnarySigns(l), removeUnarySigns(r));
+        }
+        Div(l, r): {
+            Div(removeUnarySigns(l), removeUnarySigns(r));
+        }
+        M(v): {
+            Sub(Rational(0, 1), removeUnarySigns(v));
+        }
+        P(v): {
+            removeUnarySigns(v);
+        }
+    }
+}
+
+openBrackets(ast: Expr) -> Expr {
+    switch (ast) {
+        Add(l, r): {
+            Add(openBrackets(l), openBrackets(r));
+        }
+        Sub(l, r): {
+            Sub(openBrackets(l), openBrackets(r));
+        }
+        Mul(oldl, oldr): {
+            l = openBrackets(oldl);
+            r = openBrackets(oldr);
+            switch (l) {
+                Add(ll, lr): {
+                    Add(openBrackets(Mul(ll, r)), openBrackets(Mul(lr, r)));
+                }
+                Sub(ll, lr): {
+                    Sub(openBrackets(Mul(ll, r)), openBrackets(Mul(lr, r)));
+                }
+                default: {
+                    switch (r) {
+                        Add(rl, rr): {
+                            Add(openBrackets(Mul(l, rl)), openBrackets(Mul(l, rr)));
+                        }
+                        Sub(rl, rr): {
+                            Sub(openBrackets(Mul(l, rl)), openBrackets(Mul(l, rr)));
+                        }
+                        default: {
+                            Mul(l, r);
+                        }
+                    }
+                }
+            }
+        }
+        default: {
+            ast;
+        }
+    }
+}
+
+extractAndCountConst0(ast: Expr) -> Pair<Expr, Rational> {
+    switch (ast) {
+        Var(v): {
+            Pair(ast, Rational(1, 1));
+        }
+        Rational(n, d): {
+            Pair(ast, ast);
+        }
+        Mul(oldl, oldr): {
+            linfo = extractAndCountConst0(oldl);
+            rinfo = extractAndCountConst0(oldr);
+            l = linfo.first;
+            r = rinfo.first;
+            switch (l) {
+                Rational(ln, ld): {
+                    switch (r) {
+                        Rational(rn, rd): {
+                            result = mulRational(l, r);
+                            Pair(result, result);
+                        }
+                        default: {
+                            Pair(r, mulRational(l, rinfo.second));
+                        }
+                    }
+                }
+                default: {
+                    switch (r) {
+                        Rational(rn, rd): {
+                            Pair(l, mulRational(linfo.second, r));
+                        }
+                        default: {
+                            Pair(Mul(l, r), mulRational(linfo.second, rinfo.second));
+                        }
+                    }
+                }
+            }
+        }
+        default: {
+            Pair(ast, Rational(0, 1));
+        }
+    }
+}
+
+extractAndCountConst(ast: Expr) -> Expr {
+    switch (ast) {
+        Add(l, r): {
+            Add(extractAndCountConst(l), extractAndCountConst(r));
+        }
+        Sub(l, r): {
+            Sub(extractAndCountConst(l), extractAndCountConst(r));
+        }
+        Mul(l, r): {
+            result = extractAndCountConst0(ast);
+            switch (result.first) {
+                Rational (n, d): {
+                    Rational(n, d);
+                }
+                default: {
+                    Mul(result.second, result.first);
+                }
+            }
+        }
+        default: {
+            ast;
+        }
+    }
+}
+
+removeZerosInSum0(ast: Expr) -> Pair<Expr, Rational> {
+    switch (ast) {
+        Rational(n, d): {
+            Pair(ast, ast);
+        }
+        Var(v): {
+            Pair(ast, Rational(0, 1));
+        }
+        Add(oldl, oldr): {
+            linfo = removeZerosInSum0(oldl);
+            rinfo = removeZerosInSum0(oldr);
+            l = linfo.first;
+            r = rinfo.first;
+            switch (l) {
+                Rational(ln, ld): {
+                    switch (r) {
+                        Rational(rn, rd): {
+                            result = addRational(l, r);
+                            Pair(result, result);
+                        }
+                        default: {
+                            Pair(r, addRational(l, rinfo.second));
+                        }
+                    }
+                }
+                default: {
+                    switch (r) {
+                        Rational(rn, rd): {
+                            Pair(l, addRational(linfo.second, r));
+                        }
+                        default: {
+                            Pair(Add(l, r), addRational(linfo.second, rinfo.second));
+                        }
+                    }
+                }
+            }
+        }
+        Sub(oldl, oldr): {
+            linfo = removeZerosInSum0(oldl);
+            rinfo = removeZerosInSum0(oldr);
+            l = linfo.first;
+            r = rinfo.first;
+            switch (l) {
+                Rational(ln, ld): {
+                    switch (r) {
+                        Rational(rn, rd): {
+                            result = subRational(l, r);
+                            Pair(result, result);
+                        }
+                        default: {
+                            Pair(r, subRational(l, rinfo.second));
+                        }
+                    }
+                }
+                default: {
+                    switch (r) {
+                        Rational(rn, rd): {
+                            Pair(l, subRational(linfo.second, r));
+                        }
+                        default: {
+                            Pair(Sub(l, r), subRational(linfo.second, rinfo.second));
+                        }
+                    }
+                }
+            }
+        }
+        Mul(l, r): {
+            switch (l) {
+                Rational(ln, ld): {
+                    if (ln == 0) {
+                        Pair(l, l);
+                    } else {
+                        Pair(ast, Rational(0, 1));
+                    }
+                }
+                default: {
+                    Pair(ast, Rational(0, 1));
+                }
+            }
+        }
+        default: {
+            Pair(ast, Rational(0, 1));
+        }
+    }
+}
+
+removeZerosInSum(ast: Expr) -> Expr {
+    result = removeZerosInSum0(ast);
+    l = result.first;
+    r = result.second;
+    switch (l) {
+        Rational(ln, ld): {
+            l;
+        }
+        default: {
+            if (r.num == 0) {
+                l;
+            } else {
+                Add(l, r);
+            }
+        }
+    }
+}
+
+simplifyWithoutDiv(ast: Expr) -> Expr {
+    astWithoutUnarySigns = removeUnarySigns(ast);
+    astWithOpenedBrackets = openBrackets(astWithoutUnarySigns);
+    astWithExtraction = extractAndCountConst(astWithOpenedBrackets);
+    removeZerosInSum(astWithExtraction);
+}
+
+simplifyRationalFunction(ast: Expr) -> Expr {
+    if (isRationalFunction(ast)) {
+        switch (ast) {
+            Div(l, r): {
+                Div(simplifyWithoutDiv(l), simplifyWithoutDiv(r));
+            }
+            default: {
+                simplifyWithoutDiv(ast);
+            }
+        }
+    } else {
+        fail("expected rational function");
+        ast;
+    }
+}
+
+
+
+
+
+main() {
+    // temp = readUntil("\n");
+    // str = substring(temp, 0, strlen(temp) - 1);
+    println(simplifyRationalFunction(inToAst("(3*(x+(5*(4+(z + 6)))))")));
+    // println(makeRationalPolinom(inToAst(str)));
+    quit(0);
+}
+
+
+// minus_extractor = sp* "(" sp* "-" sp* exp$s sp* ")"  { $s };
+
+// add_op_minus = sp* "(" sp* exp$s1 sp* "+" sp* minus_extractor$s2 sp* ")" { "(" $s1 "-" $s2 ")" };
+// minus_add_op = sp* "(" sp* minus_extractor$s1 sp* "+" sp* exp$s2 sp* ")" { "(" $s2 "-" $s1 ")" };
+// minus_add_op_minus = sp* "(" sp* minus_extractor$s1 sp* "+" sp* minus_extractor$s2 sp* ")" { "(0-" "(" $s1 "+" $s2 ")" ")" };
+
+// sub_op_minus = sp* "(" sp* exp$s1 sp* "-" sp* minus_extractor$s2 sp* ")" { "(" $s1 "+" $s2 ")" };
+// minus_sub_op = sp* "(" sp* minus_extractor$s1 sp* "-" sp* exp$s2 sp* ")" { "(0-" "(" $s1 "+" $s2 "))" };
+// minus_sub_op_minus = sp* "(" sp* minus_extractor$s1 sp* "-" sp* minus_extractor$s2 sp* ")" { "(0-" "(" $s2 "+" $s1 ")" ")" };
