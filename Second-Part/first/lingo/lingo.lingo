@@ -1,0 +1,6 @@
+exp = "(" sp* exp:e1 sp* "+" sp* exp:e2 sp* ")" { Add(:e1, :e2) }
+	| "(" sp* exp:e1 sp* "*" sp* exp:e2 sp* ")" { Mul(:e1, :e2) }
+	| int:e { :e };
+int = digit+$d { Int(s2i($d)) };
+digit = '0'-'9';
+sp = " " | "\t" | "\n" | "\r";

@@ -1,0 +1,30 @@
+sum_op = "+" | "-";
+sp = " " | "\n" | "\r" | "\t";
+
+var = word;
+num = i | ni;
+
+i  = digit+;
+ni = ("-" digit+);
+
+digit = '0'-'9';
+word = ('a'-'z' | 'A'-'Z') ('a'-'z' | 'A'-'Z' | '0'-'9')*;
+
+zero = '0'+
+
+exp = zero_add | add_zero | sub_zero | zero_mul | mul_zero | add | sub | mul | sub | p | m | var | num;
+
+zero_add = sp* "(" sp* zero sp* "+" sp* exp$s2 sp* ")" { $s2 };
+add_zero = sp* "(" sp* exp$s1 sp* "+" sp* zero sp* ")" { $s1 };
+sub_zero = sp* "(" sp* exp$s1 sp* "-" sp* zero sp* ")" { $s1 };
+zero_mul = sp* "(" sp* zero sp* "*" sp* exp sp* ")" { "0" };
+mul_zero = sp* "(" sp* exp sp* "*" sp* zero sp* ")" { "0" };
+
+add = sp* "(" sp* exp$s1 sp* "+" sp* exp$s2 sp* ")" { "(" $s1 "+" $s2 ")" };
+sub = sp* "(" sp* exp$s1 sp* "-" sp* exp$s2 sp* ")" { "(" $s1 "-" $s2 ")" };
+mul = sp* "(" sp* exp$s1 sp* "*" sp* exp$s2 sp* ")" { "(" $s1 "*" $s2 ")" };
+m = sp* "(" sp* "-" sp* exp$s sp* ")" { "(0-" $s ")" };
+p = sp* "(" sp* "+" sp* exp$s sp* ")" { $s };
+var = sp* var$s { $s };
+num = sp* num$s { $s };
+

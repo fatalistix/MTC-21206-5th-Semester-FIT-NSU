@@ -1,0 +1,82 @@
+/*
+ * 5) Написать PEG-парсер грамматики простых арифметических выражений, 
+ * генерирующий AST дерево, используя библиотеку lingo.
+ * возможные термы: целочисленные константы, (t1+t2), (t1*t2)
+ * 
+ * PEG - Parsing Expression Grammars (грамматика задаётся в отдельном файле 
+ * lingo)
+ * 
+ * ввод – строка "(((3 + 11) * 2) * (10 + 5))";
+ * ast = strToAst(exprStr);
+ * вывод – на машинном языке грамматики
+ *
+ * Использовать функции : parsic, compilePegGrammar
+ *
+ *
+ * 5) Преобразовать AST дерево арифметических выражений обратно в строковую форму.
+ *
+ *
+ * 5) Реализовать калькулятор, вычисляющий значение арифметического выражения.
+ */
+
+
+import lingo/pegcode/driver;
+import sys/system;
+
+lingoGrammarOp : ref Maybe<[PegOp]> = ref None();
+
+Expr ::= Int, Add, Mul;
+Int(value : int);
+Add(l : Expr, r : Expr);
+Mul(l : Expr, r : Expr);
+
+lingoGrammar() {
+	onlyOnce(lingoGrammarOp, \ -> {
+		compilePegGrammar("#include lingo/lingo.lingo");
+	});
+}
+
+strToAst(str : string) -> flow {
+	parsic(lingoGrammar(), str, defaultPegActions);
+}
+
+astToStr(ast: Expr) -> string {
+    switch (ast) {
+        Int(i): {
+            i2s(i);
+        }
+        Add(l, r): {
+            strGlue(["(", astToStr(l), "+", astToStr(r), ")"], "");
+        }
+        Mul(l, r): {
+            strGlue(["(", astToStr(l), "*", astToStr(r), ")"], "");
+        }
+    };
+}
+
+calc(ast : Expr) -> int {
+    switch (ast) {
+        Int(value): {
+            value;
+        }
+        Add(l, r): {
+            calc(l) + calc(r);
+        }
+        Mul(l, r): {
+            calc(l) * calc(r);
+        }
+    }
+}
+
+
+main() {
+	result = strToAst("(((3 + 11) * 2) *  (10 + 5))");
+    println(result);
+	temp = readUntil("\n");
+    str = substring(temp, 0, strlen(temp) - 1);
+    result1 = strToAst(str);
+    println(result1);
+    println(calc(result1));
+    println(astToStr(result1));
+    quit(0);
+}

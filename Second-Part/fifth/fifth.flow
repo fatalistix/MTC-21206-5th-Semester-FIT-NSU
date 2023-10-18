@@ -1,0 +1,187 @@
+import runtime;
+import lingo/pegcode/driver;
+import ds/tree;
+import sys/system;
+import string;
+import math/math;
+
+inLingoGrammarOp : ref Maybe<[PegOp]> = ref None();
+
+Expr ::= Rational, Var, Add, Mul, Div, Sub, M, P;
+Rational(num : int, denum : int);
+Var(v : string);
+Add(l : Expr, r : Expr);
+Mul(l : Expr, r : Expr);
+Sub(l : Expr, r : Expr);
+Div(l : Expr, r : Expr);
+M(e : Expr);
+P(e : Expr);
+
+inLingoGrammar() {
+    onlyOnce(inLingoGrammarOp, \-> {
+        compilePegGrammar("#include lingo/fifth.lingo");
+    });
+}
+
+inToAst(str : string) -> flow {
+    parsic(inLingoGrammar(), str, defaultPegActions);
+}
+
+makeRationalAdd(l: Expr, r: Expr) -> Expr {
+    ast = Add(l, r);
+    switch (l) {
+        Div(ll, lr): {
+            switch (r) {
+                Div(rl, rr): {
+                    Div(Add(Mul(ll, rr), Mul(rl, lr)), Mul(lr, rr));
+                }
+                default: {
+                    Div(Add(ll, Mul(lr, r)), lr);
+                }
+            }
+        }
+        default: {
+            switch (r) {
+                Div(rl, rr): {
+                    Div(Add(Mul(l, rr), rl), rr);
+                }
+                default: {
+                    ast;
+                }
+            }
+        }
+    }
+}
+
+makeRationalSub(l: Expr, r: Expr) -> Expr {
+    ast = Sub(l, r);
+    switch (l) {
+        Div(ll, lr): {
+            switch (r) {
+                Div(rl, rr): {
+                    Div(Sub(Mul(ll, rr), Mul(rl, lr)), Mul(lr, rr));
+                }
+                default: {
+                    Div(Sub(ll, Mul(lr, r)), lr);
+                }
+            }
+        }
+        default: {
+            switch (r) {
+                Div(rl, rr): {
+                    Div(Sub(Mul(l, rr), rl), rr);
+                }
+                default: {
+                    ast;
+                }
+            }
+        }
+    }
+}
+
+makeRationalMul(l: Expr, r : Expr) -> Expr {
+    ast = Mul(l, r);
+    switch (l) {
+        Div(ll, lr): {
+            switch (r) {
+                Div(rl, rr): {
+                    Div(Mul(ll, rl), Mul(lr, rr));
+                }
+                default: {
+                    Div(Mul(ll, r), r);
+                }
+            }
+        }
+        default: {
+            switch (r) {
+                Div(rl, rr): {
+                    Div(Mul(l, rl), rr);
+                }
+                default: {
+                    ast;
+                }
+            }
+        }
+    }
+}
+
+makeRationalDiv(l: Expr, r: Expr) -> Expr {
+    ast = Div(l, r);
+    switch (l) {
+        Div(ll, lr): {
+            switch (r) {
+                Div(rl, rr): {
+                    Div(Mul(ll, rr), Mul(lr, rl));
+                }
+                default: {
+                    Div(ll, Mul(lr, r));
+                }
+            }
+        }
+        default: {
+            switch (r) {
+                Div(rl, rr): {
+                    Div(Mul(l, rr), rl);
+                }
+                default: {
+                    ast;
+                }
+            }
+        }
+    }
+}
+
+makeRationalPolinom(ast: Expr) -> Expr {
+    switch (ast) {
+        Rational(n, d): {
+            ast;
+        }
+        Var(s): {
+            ast;
+        }
+        Add(oldl, oldr): {
+            l = makeRationalPolinom(oldl);
+            r = makeRationalPolinom(oldr);
+            makeRationalAdd(l, r);
+        }
+        Sub(oldl, oldr): {
+            l = makeRationalPolinom(oldl);
+            r = makeRationalPolinom(oldr);
+            makeRationalSub(l, r);
+        }
+        Mul(oldl, oldr): {
+            l = makeRationalPolinom(oldl);
+            r = makeRationalPolinom(oldr);
+            makeRationalMul(l, r);
+        }
+        Div(oldl, oldr): {
+            l = makeRationalPolinom(oldl);
+            r = makeRationalPolinom(oldr);
+            makeRationalDiv(l, r);
+        }
+        P(v): {
+            makeRationalPolinom(v);
+        }
+        M(v): {
+            res = makeRationalPolinom(v);
+            switch (res) {
+                Div(l, r): {
+                    Div(M(l), r);
+                }
+                M(r): {
+                    r;
+                }
+                default: {
+                    M(res);
+                }
+            }
+        }
+    }
+}
+
+main() {
+    temp = readUntil("\n");
+    str = substring(temp, 0, strlen(temp) - 1);
+    println(makeRationalPolinom(inToAst(str)));
+    quit(0);
+}

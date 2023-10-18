@@ -1,0 +1,393 @@
+/*
+ * 8) Реализуйте функцию дифференцирования алгебраического выражения по заданной переменной. Напишите функцию упрощения.
+ * 
+ * 0 + а = а
+ * 0 * а = 0, 1 * а = а
+ * (x + (y - y)) = х
+ * ((x*(x*x))) = х ^ 3
+ */
+
+import runtime;
+import lingo/pegcode/driver;
+import ds/tree;
+import sys/system;
+import string;
+import math/math;
+
+inLingoGrammarOp : ref Maybe<[PegOp]> = ref None();
+
+Expr ::= Rational, Var, Add, Mul, Div, Sub, M, P;
+Rational(num : int, denum : int);
+Var(v : string);
+Add(l : Expr, r : Expr);
+Mul(l : Expr, r : Expr);
+Sub(l : Expr, r : Expr);
+Div(l : Expr, r : Expr);
+M(e : Expr);
+P(e : Expr);
+
+inLingoGrammar() {
+    onlyOnce(inLingoGrammarOp, \-> {
+        compilePegGrammar("#include lingo/fourth.lingo");
+    });
+}
+
+inToAst(str : string) -> flow {
+    parsic(inLingoGrammar(), str, defaultPegActions);
+}
+
+simplifyRational(v : Rational) -> Rational {
+    if (v.denum == 0) {
+        fail("division by zero");
+    }
+    gcdNum = gcd(v.num, v.denum);
+    Rational(v.num / gcdNum, v.denum / gcdNum);
+}
+
+sumRational(l : Rational, r : Rational) -> Rational {
+    gcdDenum = gcd(l.denum, r.denum);
+    resultDenum = max(l.denum, r.denum) / gcdDenum * min(l.denum, r.denum);
+    resultNum   = l.num * resultDenum / l.denum + r.num * resultDenum / r.denum;
+    simplifyRational(Rational(resultNum, resultDenum));
+}
+
+mulRational(l : Rational, r : Rational) -> Rational {
+    simplifyRational(Rational(l.num * r.num, l.denum * r.denum));
+}
+
+minusRational(r : Rational) -> Rational {
+    simplifyRational(Rational(-r.num, r.denum));
+}
+
+plusRational(r : Rational) -> Rational {
+    r;
+}
+
+subRational(l : Rational, r : Rational) -> Rational {
+    sumRational(l, minusRational(r));
+}
+
+divRational(l : Rational, r : Rational) -> Rational {
+    mulRational(l, Rational(r.denum, r.num));
+}
+
+// powRational(l : Rational, r : Rational) -> Rational {
+//     resultNum = pow(l.num, r.num);
+//     resultDenum = pow(l.denum, r.num);
+//     simplifyRational(Rational(resultNum, resultDenum));
+// }
+
+simplifyAdd(l : Expr, r : Expr) -> Expr {
+    ast = Add(l, r);
+    switch (l) {
+        Rational(ln, ld): {
+            switch (r) {
+                Rational(rn, rd): {
+                    sumRational(l, r);
+                }
+                default: {
+                    if (ln == 0) {
+                        r;
+                    } else {
+                        ast;
+                    }
+                }
+            }
+        }
+        default: {
+            switch (r) {
+                Rational(rn, rd): {
+                    if (rn == 0) {
+                        r;
+                    } else {
+                        ast;
+                    }
+                }
+                default: {
+                    ast;
+                }
+            }
+        }
+    }
+}
+
+simplifyMul(l : Expr, r : Expr) -> Expr {
+    ast = Mul(l, r);
+    switch (l) {
+        Rational(ln, ld): {
+            switch (r) {
+                Rational(rn, rd): {
+                    mulRational(l, r);
+                }
+                default: {
+                    if (ln == 0) {
+                        Rational(0, 1);
+                    } else {
+                        ast;
+                    }
+                }
+            }            
+        }
+        default: {
+            switch (r) {
+                Rational(rn, rd): {
+                    if (rn == 0) {
+                        Rational(0, 1);
+                    } else {
+                        ast;
+                    }
+                }
+                default: {
+                    ast;
+                }
+            }
+        }
+    }
+}
+
+simplifySub(l : Expr, r : Expr) -> Expr {
+    ast = Sub(l, r);
+    switch (l) {
+        Rational(ln, ld): {
+            switch (r) {
+                Rational(rn, rd): {
+                    subRational(l, r);
+                }
+                default: {
+                    if (ln == 0) {
+                        M(r);
+                    } else {
+                        ast;
+                    }
+                }
+            }
+        }
+        default: {
+            switch (r) {
+                Rational(rn, rd): {
+                    if (rn == 0) {
+                        l;
+                    } else {
+                        ast;
+                    }
+                }
+                default: {
+                    if (l == r) {
+                        Rational(0, 1);
+                    } else {
+                        ast;
+                    }
+                }
+            }
+        }
+    }
+}
+
+simplifyDiv(l : Expr, r : Expr) -> Expr {
+    ast = Div(l, r);
+    switch (l) {
+        Rational(ln, ld): {
+            switch (r) {
+                Rational(rn, rd): {
+                    divRational(l, r);
+                }
+                default: {
+                    if (ln == 0) {
+                        Rational(0, 1);
+                    } else {
+                        ast;
+                    }
+                }
+            }
+        }
+        default: {
+            switch (r) {
+                Rational(rn, rd): {
+                    if (rn == 0) {
+                        fail("division by zero");
+                        ast;
+                    } else {
+                        ast;
+                    }
+                }
+                default: {
+                    if (l == r) {
+                        Rational(1, 1);
+                    } else {
+                        ast;
+                    }
+                }
+            }
+        }
+    }
+}
+
+simplifyAst(ast : Expr) -> Expr {
+    switch (ast) {
+        Rational(num, denum): {
+            ast;
+        }
+        Var(v): {
+            ast;
+        }
+        P(v): {
+            simplifyAst(v);
+        }
+        M(oldv): {
+            v = simplifyAst(oldv);
+            switch(v) {
+                Rational(n, d): {
+                    minusRational(v);
+                }
+                default: {
+                    ast;
+                }
+            }
+        }
+        Add(oldl, oldr): {
+            l = simplifyAst(oldl);
+            r = simplifyAst(oldr);
+            switch (l) {
+                M(lm): {
+                    switch (r) {
+                        M(rm): {
+                            M(simplifyAdd(lm, rm));
+                        }
+                        default: {
+                            simplifySub(r, lm);
+                        }
+                    }
+                }
+                default: {
+                    switch (r) {
+                        M(rm): {
+                            simplifySub(l, rm);
+                        }
+                        default: {
+                            simplifyAdd(l, r);
+                        }
+                    }
+                }
+            }
+        }
+        Mul(oldl, oldr): {
+            l = simplifyAst(oldl);
+            r = simplifyAst(oldr);
+            switch (l) {
+                M(lm): {
+                    switch (r) {
+                        M(rm): {
+                            simplifyMul(lm, rm);
+                        }
+                        default: {
+                            M(simplifyMul(lm, r));
+                        }
+                    }
+                }
+                default: {
+                    switch (r) {
+                        M(rm): {
+                            M(simplifyMul(l, rm));
+                        }
+                        default: {
+                            simplifyMul(l, r);
+                        }
+                    }
+                }
+            }
+        }
+        Sub(oldl, oldr): {
+            l = simplifyAst(oldl);
+            r = simplifyAst(oldr);
+            switch (l) {
+                M(lm): {
+                    switch (r) {
+                        M(rm): {
+                            simplifySub(rm, lm);
+                        }
+                        default: {
+                            M(simplifyAdd(lm, r));
+                        }
+                    }
+                }
+                default: {
+                    switch (r) {
+                        M(rm): {
+                            simplifyAdd(l, rm);
+                        }
+                        default: {
+                            simplifySub(l, r);
+                        }
+                    }
+                }
+            }
+        }
+        Div(oldl, oldr): {
+            l = simplifyAst(oldl);
+            r = simplifyAst(oldr);
+            switch (l) {
+                M(lm): {
+                    switch (r) {
+                        M(rm): {
+                            simplifyDiv(lm, rm);
+                        }
+                        default: {
+                            M(simplifyDiv(lm, r));
+                        }
+                    }
+                }
+                default: {
+                    switch (r) {
+                        M(rm): {
+                            M(simplifyDiv(l, rm));
+                        }
+                        default: {
+                            simplifyDiv(l, r);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+diffAst(ast : Expr, variable : string) -> Expr {
+    switch (ast) {
+        Rational(n, d): {
+            Rational(0, 1);
+        }
+        Var(s): {
+            if (s == variable) {
+                Rational(1, 1);
+            } else {
+                Rational(0, 1);
+            }
+        }
+        Add(l, r): {
+            Add(diffAst(l, variable), diffAst(r, variable));
+        }
+        Sub(l, r): {
+            Sub(diffAst(l, variable), diffAst(r, variable));
+        }
+        Mul(l, r): {
+            Add(Mul(diffAst(l, variable), r), Mul(l, diffAst(r, variable)));
+        }
+        Div(l, r): {
+            Div(Sub(Mul(diffAst(l, variable), r), Mul(l, diffAst(r, variable))), Mul(r, r));
+        }
+        P(v): {
+            diffAst(v, variable);
+        }
+        M(v): {
+            M(diffAst(v, variable));
+        }
+    }
+}
+
+main() {
+    temp = readUntil("\n");
+    str = substring(temp, 0, strlen(temp) - 1);
+    // println(simplifyAst(diffAst(inToAst(str), "x")));
+    println(simplifyAst(inToAst(str)));
+    quit(0);
+}

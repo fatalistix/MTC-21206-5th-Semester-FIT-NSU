@@ -1,0 +1,16 @@
+sum_op = "+" | "-";
+sp = " " | "\n" | "\r" | "\t";
+
+var = word$s { Var($s) };
+num = i | ni;
+
+i  = digit+;
+ni = ("-" digit+) { Rational(s2i($s), 1) };
+
+digit = '0'-'9';
+word = ('a'-'z' | 'A'-'Z') ('a'-'z' | 'A'-'Z' | '0'-'9')*;
+
+
+
+mul_sum_op_to_mul_sum_op_mul = sp* "(" sp* exp$s1 sp* "*" sp* "(" sp* exp$s2 sp* sum_op$sop sp* exp$s3 sp* ")" sp* ")" { "((" $s1 "*" $s2 ")" $sop "(" $s1 "*" $s2 ")" ")" }
+sum_op_mul_to_mul_sum_op_mul = sp* "(" sp* "(" sp* exp$s1 sp* sum_op$sop sp* exp$s2 sp* ")" sp* exp$s3 sp* "*" sp* ")" { "((" $s1 "*" $s3 ")" $sop "(" $s1 "*" $s3 ")" ")" }

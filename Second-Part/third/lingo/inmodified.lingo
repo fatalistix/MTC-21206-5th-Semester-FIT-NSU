@@ -1,0 +1,23 @@
+exp = sp* "(" sp* exp:e1 sp* "+" sp* exp:e2 sp* ")" { Add(:e1, :e2) }
+    | sp* "(" sp* exp:e1 sp* "*" sp* exp:e2 sp* ")" { Mul(:e1, :e2) }
+    | sp* "(" sp* exp:e1 sp* "/" sp* exp:e2 sp* ")" { Div(:e1, :e2) }
+    | sp* "(" sp* exp:e1 sp* "-" sp* exp:e2 sp* ")" { Sub(:e1, :e2) }
+    | sp* "(" sp* "-" sp* exp:e sp* ")" { M(:e) }
+    | sp* "(" sp* "+" sp* exp:e sp* ")" { P(:e) }
+    | sp* var:e { :e }
+    | sp* num:e { :e };
+
+var = word$s { Var($s) };
+num = d | nd | i | ni;
+
+i  = digit+$s { Int(s2i($s)) };
+ni = ("-" digit+)$s { Int(s2i($s)) };
+
+d  = (digit+ "." digit+)$s { Double(s2d($s)) };
+nd = ("-" digit+ "." digit+)$s { Double(s2d($s)) };
+
+
+
+digit = '0'-'9';
+word = ('a'-'z' | 'A'-'Z') ('a'-'z' | 'A'-'Z' | '0'-'9')*;
+sp = " " | "\t" | "\n" | "\r";

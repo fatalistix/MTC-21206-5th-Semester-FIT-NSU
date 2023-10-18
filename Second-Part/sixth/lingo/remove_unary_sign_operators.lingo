@@ -1,0 +1,22 @@
+sum_op = "+" | "-";
+sp = " " | "\n" | "\r" | "\t";
+
+var = word;
+num = i | ni;
+
+i  = digit+;
+ni = ("-" digit+);
+
+digit = '0'-'9';
+word = ('a'-'z' | 'A'-'Z') ('a'-'z' | 'A'-'Z' | '0'-'9')*;
+
+exp = add | sub | mul | sub | p | m | var | num;
+
+add = sp* "(" sp* exp$s1 sp* "+" sp* exp$s2 sp* ")" { strGlue(["(", $s1, "+", $s2, ")",], "") };
+sub = sp* "(" sp* exp$s1 sp* "-" sp* exp$s2 sp* ")" { "(" $s1 "-" $s2 ")" };
+mul = sp* "(" sp* exp$s1 sp* "*" sp* exp$s2 sp* ")" { "(" $s1 "*" $s2 ")" };
+m = sp* "(" sp* "-" sp* exp$s sp* ")" { "(0-" $s ")" };
+p = sp* "(" sp* "+" sp* exp$s sp* ")" { $s };
+var = sp* var$s { $s };
+num = sp* num$s { $s };
+
