@@ -1,3 +1,7 @@
+/*
+ * Реализуйте функцию упрощения рациональной функции по заданному набору тождеств
+ */
+
 import runtime;
 import lingo/pegcode/driver;
 import ds/tree;
